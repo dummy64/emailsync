@@ -42,18 +42,12 @@
   .badge-enrolled { background: #34a853; }
   .badge-closed { background: #999; }
   .empty { text-align: center; padding: 40px; color: #888; }
-  .setup-banner { background: #fff3cd; border: 1px solid #ffc107; padding: 16px; border-radius: 8px; margin-bottom: 20px; }
-  .setup-banner code { background: #f8f9fa; padding: 2px 6px; border-radius: 4px; }
 </style>
 </head>
 <body>
 
 <h1>📋 Admission Enquiries</h1>
 <p class="subtitle">Dashboard for managing admission enquiries</p>
-
-<div id="setup-banner" class="setup-banner" style="display:none">
-  ⚠️ Set your Apps Script URL: Open this file and update <code>API_URL</code> at the top of the script.
-</div>
 
 <div class="toolbar">
   <input type="text" id="search" placeholder="Search by name, email, phone, location..." oninput="renderCards()">
@@ -72,22 +66,31 @@
 <div id="content"><div class="loading">Loading enquiries...</div></div>
 
 <script>
-// ⚠️ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
-const API_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AWDtjMXued8q26gc6OEfjY4TOjT_phKL-Gf0QawSWZkNZFpcgDedPrj0_Eo52q2qbBeKKZMzfF53C9TXQlOK8lrzz321TBVakjrrGVOhTh_a8foM-AFNhDKQ5lOqfMGnI9MavUMyCGTya1dBfCO9tbNCG7dK0mp1pMCWUaHWS294p0BCFlal7uFLTUUCVEFsBPJ42Ovge4cOFgcTR9Th1ZgZRrXDcCdvdV-G9kko3Y86lnVEenTRUSeBC4uWDxLCgf5eOSNyDlEazwveFLkKfmOS8206MxN_mtxGbZyev0lC&lib=MANR7WFVDP2I8caPorEt_HTklsrAXLlt3";
+// CONFIG
+const SHEET_ID = "1O_iSsIssKkmeHVI4LLiP82xN1GzgXU6RwNJ7asMHAAc";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxjTtmh6oBU0MD_pYHtWRUi9itSrZbU486JVZ4Gy0t8kgk8S9RKxMUhRmMLwvjQ0fvxiw/exec";
+const SHEET_GViz_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Sheet1`;
 
 const STATUSES = ["New", "Contacted", "Follow-up", "Enrolled", "Closed"];
 const BADGE_CLASS = { "New": "badge-new", "Contacted": "badge-contacted", "Follow-up": "badge-followup", "Enrolled": "badge-enrolled", "Closed": "badge-closed" };
+const COL_MAP = ["Parent Name", "Email", "Phone Number", "Location", "Message", "Date", "Status", "Comments"];
 let DATA = [];
 
-function loadData() {
-  if (!API_URL) { document.getElementById("setup-banner").style.display = "block"; document.getElementById("content").innerHTML = '<div class="empty">Please configure API_URL first.</div>'; return; }
+async function loadData() {
   document.getElementById("content").innerHTML = '<div class="loading">Loading enquiries...</div>';
-  const cbName = "_cb" + Date.now();
-  window[cbName] = function(data) { DATA = data; renderStats(); renderCards(); delete window[cbName]; };
-  const s = document.createElement("script");
-  s.src = API_URL + "&callback=" + cbName;
-  s.onerror = () => { document.getElementById("content").innerHTML = '<div class="empty">Failed to load data. Check API URL.</div>'; };
-  document.body.appendChild(s);
+  try {
+    const res = await fetch(SHEET_GViz_URL);
+    const text = await res.text();
+    // Response is: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
+    const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\((.+)\);/)[1]);
+    DATA = json.table.rows.map((row, i) => {
+      const obj = { _row: i + 2 };
+      row.c.forEach((cell, j) => { if (j < COL_MAP.length) obj[COL_MAP[j]] = cell ? (cell.v || "") : ""; });
+      return obj;
+    });
+    renderStats();
+    renderCards();
+  } catch (e) { document.getElementById("content").innerHTML = '<div class="empty">Failed to load data. Make sure the sheet is shared (Anyone with link → Viewer).</div>'; }
 }
 
 function renderStats() {
@@ -114,12 +117,12 @@ function renderCards() {
 
   document.getElementById("content").innerHTML = '<div class="card-list">' + filtered.map(r => {
     const status = r.Status || "New";
-    const phone = r["Phone Number"] || "";
+    const phone = String(r["Phone Number"] || "");
     const cleanPhone = phone.replace(/[^\d+]/g, "");
     return `<div class="card">
       <div class="card-header">
-        <div><h3>${esc(r["Parent Name"] || "Unknown")}</h3><span class="badge ${BADGE_CLASS[status] || "badge-new"}">${status}</span></div>
-        <span class="date">${esc(r.Date || "")}</span>
+        <div><h3>${esc(r["Parent Name"] || "Unknown")}</h3> <span class="badge ${BADGE_CLASS[status] || "badge-new"}">${status}</span></div>
+        <span class="date">${esc(String(r.Date || ""))}</span>
       </div>
       <div class="card-details">
         <div><label>Email</label>${esc(r.Email || "-")}</div>
@@ -132,7 +135,7 @@ function renderCards() {
         <select id="status-${r._row}" aria-label="Status">
           ${STATUSES.map(s => `<option ${s === status ? "selected" : ""}>${s}</option>`).join("")}
         </select>
-        <input id="comments-${r._row}" value="${esc(r.Comments || "")}" placeholder="Add comments..." aria-label="Comments">
+        <input id="comments-${r._row}" value="${esc(String(r.Comments || ""))}" placeholder="Add comments..." aria-label="Comments">
         <button class="btn-save" onclick="saveRow(${r._row}, this)">Save</button>
       </div>
     </div>`;
@@ -144,7 +147,7 @@ async function saveRow(row, btn) {
   const status = document.getElementById("status-" + row).value;
   const comments = document.getElementById("comments-" + row).value;
   try {
-    await fetch(API_URL, { method: "POST", body: JSON.stringify({ row, status, comments }), headers: { "Content-Type": "text/plain" }, mode: "no-cors" });
+    await fetch(APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ row, status, comments }), headers: { "Content-Type": "text/plain" }, mode: "no-cors" });
     const item = DATA.find(r => r._row === row);
     if (item) { item.Status = status; item.Comments = comments; }
     renderStats();
@@ -153,7 +156,7 @@ async function saveRow(row, btn) {
   } catch (e) { btn.textContent = "Error!"; btn.disabled = false; }
 }
 
-function esc(s) { const d = document.createElement("div"); d.textContent = s; return d.innerHTML; }
+function esc(s) { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; }
 
 loadData();
 </script>
