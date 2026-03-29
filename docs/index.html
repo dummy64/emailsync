@@ -94,38 +94,42 @@
 const CLIENT_ID = "206328073778-catkfv120bko1d8lok2i6sq5shucfbai.apps.googleusercontent.com";
 const SHEET_ID = "1O_iSsIssKkmeHVI4LLiP82xN1GzgXU6RwNJ7asMHAAc";
 const SHEET_NAME = "Sheet1";
-const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
+const SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile";
 
 const STATUSES = ["New", "Contacted", "Follow-up", "Enrolled", "Closed"];
 const BADGE_CLASS = { "New": "badge-new", "Contacted": "badge-contacted", "Follow-up": "badge-followup", "Enrolled": "badge-enrolled", "Closed": "badge-closed" };
 const HEADERS = ["Parent Name", "Email", "Phone Number", "Location", "Message", "Date", "Status", "Comments", "Follow-up Date"];
 let DATA = [];
 let tokenClient;
+let gapiLoaded = false;
 
 function initAuth() {
+  // Pre-load gapi client
+  gapi.load("client", async () => {
+    await gapi.client.init({});
+    await gapi.client.load("sheets", "v4");
+    gapiLoaded = true;
+  });
+
   tokenClient = google.accounts.oauth2.initTokenClient({
     client_id: CLIENT_ID,
     scope: SCOPES,
     callback: onTokenResponse,
   });
-  // Render sign-in button
   document.getElementById("g_id_signin").innerHTML = '<button onclick="tokenClient.requestAccessToken()" style="padding:12px 32px;font-size:1rem;background:#4285f4;color:#fff;border:none;border-radius:8px;cursor:pointer">🔐 Sign in with Google</button>';
 }
 
 function onTokenResponse(resp) {
   if (resp.error) return;
+  gapi.client.setToken({ access_token: resp.access_token });
   document.getElementById("auth-screen").style.display = "none";
   document.getElementById("app").style.display = "block";
-  // Show user info
   fetch("https://www.googleapis.com/oauth2/v3/userinfo", { headers: { Authorization: "Bearer " + resp.access_token } })
     .then(r => r.json()).then(u => {
-      document.getElementById("user-bar").innerHTML = `<span>${esc(u.name)}</span><img src="${u.picture}" alt="avatar"><button onclick="signOut()">Sign out</button>`;
-    });
-  gapi.load("client", () => {
-    gapi.client.init({}).then(() => {
-      gapi.client.load("sheets", "v4").then(loadData);
-    });
-  });
+      document.getElementById("user-bar").innerHTML = `<span>${esc(u.name || u.email || "")}</span>${u.picture ? `<img src="${u.picture}" alt="avatar">` : ""}<button onclick="signOut()">Sign out</button>`;
+    }).catch(() => {});
+  if (gapiLoaded) loadData();
+  else setTimeout(loadData, 500);
 }
 
 function signOut() {
