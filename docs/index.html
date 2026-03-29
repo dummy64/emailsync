@@ -85,7 +85,7 @@ function loadData() {
   const cbName = "_cb" + Date.now();
   window[cbName] = function(data) { DATA = data; renderStats(); renderCards(); delete window[cbName]; };
   const s = document.createElement("script");
-  s.src = API_URL + "?callback=" + cbName;
+  s.src = API_URL + "&callback=" + cbName;
   s.onerror = () => { document.getElementById("content").innerHTML = '<div class="empty">Failed to load data. Check API URL.</div>'; };
   document.body.appendChild(s);
 }
