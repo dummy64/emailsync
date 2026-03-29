@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📋</text></svg>">
 <title>Admission Enquiries Dashboard</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -72,21 +73,21 @@
 
 <script>
 // ⚠️ PASTE YOUR GOOGLE APPS SCRIPT WEB APP URL HERE
-const API_URL = "https://script.google.com/macros/s/AKfycbxjTtmh6oBU0MD_pYHtWRUi9itSrZbU486JVZ4Gy0t8kgk8S9RKxMUhRmMLwvjQ0fvxiw/exec";
+const API_URL = "https://script.googleusercontent.com/macros/echo?user_content_key=AWDtjMXued8q26gc6OEfjY4TOjT_phKL-Gf0QawSWZkNZFpcgDedPrj0_Eo52q2qbBeKKZMzfF53C9TXQlOK8lrzz321TBVakjrrGVOhTh_a8foM-AFNhDKQ5lOqfMGnI9MavUMyCGTya1dBfCO9tbNCG7dK0mp1pMCWUaHWS294p0BCFlal7uFLTUUCVEFsBPJ42Ovge4cOFgcTR9Th1ZgZRrXDcCdvdV-G9kko3Y86lnVEenTRUSeBC4uWDxLCgf5eOSNyDlEazwveFLkKfmOS8206MxN_mtxGbZyev0lC&lib=MANR7WFVDP2I8caPorEt_HTklsrAXLlt3";
 
 const STATUSES = ["New", "Contacted", "Follow-up", "Enrolled", "Closed"];
 const BADGE_CLASS = { "New": "badge-new", "Contacted": "badge-contacted", "Follow-up": "badge-followup", "Enrolled": "badge-enrolled", "Closed": "badge-closed" };
 let DATA = [];
 
-async function loadData() {
+function loadData() {
   if (!API_URL) { document.getElementById("setup-banner").style.display = "block"; document.getElementById("content").innerHTML = '<div class="empty">Please configure API_URL first.</div>'; return; }
   document.getElementById("content").innerHTML = '<div class="loading">Loading enquiries...</div>';
-  try {
-    const res = await fetch(API_URL);
-    DATA = await res.json();
-    renderStats();
-    renderCards();
-  } catch (e) { document.getElementById("content").innerHTML = '<div class="empty">Failed to load data. Check API URL.</div>'; }
+  const cbName = "_cb" + Date.now();
+  window[cbName] = function(data) { DATA = data; renderStats(); renderCards(); delete window[cbName]; };
+  const s = document.createElement("script");
+  s.src = API_URL + "?callback=" + cbName;
+  s.onerror = () => { document.getElementById("content").innerHTML = '<div class="empty">Failed to load data. Check API URL.</div>'; };
+  document.body.appendChild(s);
 }
 
 function renderStats() {
@@ -143,7 +144,7 @@ async function saveRow(row, btn) {
   const status = document.getElementById("status-" + row).value;
   const comments = document.getElementById("comments-" + row).value;
   try {
-    await fetch(API_URL, { method: "POST", body: JSON.stringify({ row, status, comments }), headers: { "Content-Type": "text/plain" } });
+    await fetch(API_URL, { method: "POST", body: JSON.stringify({ row, status, comments }), headers: { "Content-Type": "text/plain" }, mode: "no-cors" });
     const item = DATA.find(r => r._row === row);
     if (item) { item.Status = status; item.Comments = comments; }
     renderStats();
