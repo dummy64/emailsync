@@ -27,6 +27,7 @@
   .card-details label { color: #888; font-size: 0.75rem; display: block; }
   .card-actions { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
   .card-actions select, .card-actions input { padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; }
+  .card-actions input[type="date"] { width: 140px; flex: none; }
   .card-actions input { flex: 1; min-width: 150px; }
   .btn-call { display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #34a853; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.85rem; }
   .btn-call:hover { background: #2d8e47; }
@@ -42,6 +43,12 @@
   .badge-enrolled { background: #34a853; }
   .badge-closed { background: #999; }
   .empty { text-align: center; padding: 40px; color: #888; }
+  .auth-screen { text-align: center; padding: 80px 20px; }
+  .auth-screen h2 { margin-bottom: 10px; }
+  .auth-screen p { color: #666; margin-bottom: 24px; }
+  .user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 0.85rem; }
+  .user-bar img { width: 28px; height: 28px; border-radius: 50%; }
+  .user-bar button { background: none; border: 1px solid #ddd; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
 </style>
 </head>
 <body>
@@ -49,48 +56,100 @@
 <h1>📋 Admission Enquiries</h1>
 <p class="subtitle">Dashboard for managing admission enquiries</p>
 
-<div class="toolbar">
-  <input type="text" id="search" placeholder="Search by name, email, phone, location..." oninput="renderCards()">
-  <select id="filter-status" onchange="renderCards()">
-    <option value="">All Status</option>
-    <option value="New">New</option>
-    <option value="Contacted">Contacted</option>
-    <option value="Follow-up">Follow-up</option>
-    <option value="Enrolled">Enrolled</option>
-    <option value="Closed">Closed</option>
-  </select>
-  <button onclick="loadData()">↻ Refresh</button>
+<div id="auth-screen" class="auth-screen">
+  <h2>Sign in to continue</h2>
+  <p>Only users with access to the sheet can view this dashboard.</p>
+  <div id="g_id_signin"></div>
 </div>
 
-<div class="stats" id="stats"></div>
-<div id="content"><div class="loading">Loading enquiries...</div></div>
+<div id="app" style="display:none">
+  <div class="user-bar" id="user-bar"></div>
+  <div class="toolbar">
+    <input type="text" id="search" placeholder="Search by name, email, phone, location..." oninput="renderCards()">
+    <select id="filter-status" onchange="renderCards()">
+      <option value="">All Status</option>
+      <option value="New">New</option>
+      <option value="Contacted">Contacted</option>
+      <option value="Follow-up">Follow-up</option>
+      <option value="Enrolled">Enrolled</option>
+      <option value="Closed">Closed</option>
+    </select>
+    <select id="filter-followup" onchange="renderCards()">
+      <option value="">All Follow-ups</option>
+      <option value="overdue">Overdue</option>
+      <option value="today">Today</option>
+      <option value="week">This Week</option>
+      <option value="none">No Date Set</option>
+    </select>
+    <button onclick="loadData()">↻ Refresh</button>
+  </div>
+  <div class="stats" id="stats"></div>
+  <div id="content"><div class="loading">Loading enquiries...</div></div>
+</div>
 
+<script src="https://accounts.google.com/gsi/client"></script>
+<script src="https://apis.google.com/js/api.js"></script>
 <script>
-// CONFIG
+// ⚠️ CONFIG — update these
+const CLIENT_ID = "YOUR_WEB_OAUTH_CLIENT_ID_HERE";
 const SHEET_ID = "1O_iSsIssKkmeHVI4LLiP82xN1GzgXU6RwNJ7asMHAAc";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxjTtmh6oBU0MD_pYHtWRUi9itSrZbU486JVZ4Gy0t8kgk8S9RKxMUhRmMLwvjQ0fvxiw/exec";
-const SHEET_GViz_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=Sheet1`;
+const SHEET_NAME = "Sheet1";
+const SCOPES = "https://www.googleapis.com/auth/spreadsheets";
 
 const STATUSES = ["New", "Contacted", "Follow-up", "Enrolled", "Closed"];
 const BADGE_CLASS = { "New": "badge-new", "Contacted": "badge-contacted", "Follow-up": "badge-followup", "Enrolled": "badge-enrolled", "Closed": "badge-closed" };
-const COL_MAP = ["Parent Name", "Email", "Phone Number", "Location", "Message", "Date", "Status", "Comments"];
+const HEADERS = ["Parent Name", "Email", "Phone Number", "Location", "Message", "Date", "Status", "Comments", "Follow-up Date"];
 let DATA = [];
+let tokenClient;
+
+function initAuth() {
+  tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: onTokenResponse,
+  });
+  // Render sign-in button
+  document.getElementById("g_id_signin").innerHTML = '<button onclick="tokenClient.requestAccessToken()" style="padding:12px 32px;font-size:1rem;background:#4285f4;color:#fff;border:none;border-radius:8px;cursor:pointer">🔐 Sign in with Google</button>';
+}
+
+function onTokenResponse(resp) {
+  if (resp.error) return;
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  // Show user info
+  fetch("https://www.googleapis.com/oauth2/v3/userinfo", { headers: { Authorization: "Bearer " + resp.access_token } })
+    .then(r => r.json()).then(u => {
+      document.getElementById("user-bar").innerHTML = `<span>${esc(u.name)}</span><img src="${u.picture}" alt="avatar"><button onclick="signOut()">Sign out</button>`;
+    });
+  gapi.load("client", () => {
+    gapi.client.init({}).then(() => {
+      gapi.client.load("sheets", "v4").then(loadData);
+    });
+  });
+}
+
+function signOut() {
+  google.accounts.oauth2.revoke(gapi.client.getToken().access_token);
+  gapi.client.setToken(null);
+  document.getElementById("auth-screen").style.display = "block";
+  document.getElementById("app").style.display = "none";
+}
 
 async function loadData() {
   document.getElementById("content").innerHTML = '<div class="loading">Loading enquiries...</div>';
   try {
-    const res = await fetch(SHEET_GViz_URL);
-    const text = await res.text();
-    // Response is: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
-    const json = JSON.parse(text.match(/google\.visualization\.Query\.setResponse\((.+)\);/)[1]);
-    DATA = json.table.rows.map((row, i) => {
+    const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: SHEET_NAME });
+    const rows = res.result.values || [];
+    DATA = rows.slice(1).map((row, i) => {
       const obj = { _row: i + 2 };
-      row.c.forEach((cell, j) => { if (j < COL_MAP.length) obj[COL_MAP[j]] = cell ? (cell.v || "") : ""; });
+      HEADERS.forEach((h, j) => { obj[h] = row[j] || ""; });
       return obj;
     });
     renderStats();
     renderCards();
-  } catch (e) { document.getElementById("content").innerHTML = '<div class="empty">Failed to load data. Make sure the sheet is shared (Anyone with link → Viewer).</div>'; }
+  } catch (e) {
+    document.getElementById("content").innerHTML = '<div class="empty">Failed to load data. You may not have access to this sheet.</div>';
+  }
 }
 
 function renderStats() {
@@ -106,10 +165,24 @@ function renderStats() {
 function renderCards() {
   const q = document.getElementById("search").value.toLowerCase();
   const sf = document.getElementById("filter-status").value;
+  const ff = document.getElementById("filter-followup").value;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const weekEnd = new Date(today); weekEnd.setDate(weekEnd.getDate() + 7);
+
   const filtered = DATA.filter(r => {
     const status = r.Status || "New";
     if (sf && status !== sf) return false;
     if (q) { const text = [r["Parent Name"], r.Email, r["Phone Number"], r.Location, r.Message].join(" ").toLowerCase(); if (!text.includes(q)) return false; }
+    if (ff) {
+      const fd = r["Follow-up Date"] ? new Date(r["Follow-up Date"]) : null;
+      if (ff === "none" && fd) return false;
+      if (ff === "none" && !fd) return true;
+      if (!fd) return false;
+      fd.setHours(0,0,0,0);
+      if (ff === "overdue" && fd >= today) return false;
+      if (ff === "today" && fd.getTime() !== today.getTime()) return false;
+      if (ff === "week" && (fd < today || fd > weekEnd)) return false;
+    }
     return true;
   });
 
@@ -135,6 +208,7 @@ function renderCards() {
         <select id="status-${r._row}" aria-label="Status">
           ${STATUSES.map(s => `<option ${s === status ? "selected" : ""}>${s}</option>`).join("")}
         </select>
+        <input type="date" id="followup-${r._row}" value="${esc(fmtDate(r["Follow-up Date"]))}" aria-label="Follow-up Date" title="Follow-up Date">
         <input id="comments-${r._row}" value="${esc(String(r.Comments || ""))}" placeholder="Add comments..." aria-label="Comments">
         <button class="btn-save" onclick="saveRow(${r._row}, this)">Save</button>
       </div>
@@ -146,19 +220,31 @@ async function saveRow(row, btn) {
   btn.disabled = true; btn.textContent = "Saving...";
   const status = document.getElementById("status-" + row).value;
   const comments = document.getElementById("comments-" + row).value;
+  const followup = document.getElementById("followup-" + row).value;
   try {
-    await fetch(APPS_SCRIPT_URL, { method: "POST", body: JSON.stringify({ row, status, comments }), headers: { "Content-Type": "text/plain" }, mode: "no-cors" });
+    await gapi.client.sheets.spreadsheets.values.update({
+      spreadsheetId: SHEET_ID,
+      range: `${SHEET_NAME}!G${row}:I${row}`,
+      valueInputOption: "USER_ENTERED",
+      resource: { values: [[status, comments, followup]] }
+    });
     const item = DATA.find(r => r._row === row);
-    if (item) { item.Status = status; item.Comments = comments; }
+    if (item) { item.Status = status; item.Comments = comments; item["Follow-up Date"] = followup; }
     renderStats();
     btn.textContent = "✓ Saved"; btn.classList.add("saved");
     setTimeout(() => { btn.textContent = "Save"; btn.classList.remove("saved"); btn.disabled = false; }, 1500);
   } catch (e) { btn.textContent = "Error!"; btn.disabled = false; }
 }
 
+function fmtDate(v) {
+  if (!v) return "";
+  const d = new Date(v);
+  return isNaN(d) ? "" : d.toISOString().split("T")[0];
+}
+
 function esc(s) { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; }
 
-loadData();
+window.onload = initAuth;
 </script>
 </body>
 </html>
