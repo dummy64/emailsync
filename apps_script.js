@@ -20,7 +20,12 @@ function doGet(e) {
     headers.forEach(function(h, j) { obj[h] = row[j]; });
     return obj;
   });
-  return ContentService.createTextOutput(JSON.stringify(rows)).setMimeType(ContentService.MimeType.JSON);
+  var json = JSON.stringify(rows);
+  var callback = e && e.parameter && e.parameter.callback;
+  if (callback) {
+    return ContentService.createTextOutput(callback + "(" + json + ")").setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
@@ -29,5 +34,6 @@ function doPost(e) {
   var row = params.row;
   if (params.status !== undefined) sheet.getRange(row, 7).setValue(params.status);
   if (params.comments !== undefined) sheet.getRange(row, 8).setValue(params.comments);
+  if (params.followup !== undefined) sheet.getRange(row, 9).setValue(params.followup);
   return ContentService.createTextOutput(JSON.stringify({ success: true })).setMimeType(ContentService.MimeType.JSON);
 }
