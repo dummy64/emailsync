@@ -110,12 +110,28 @@
 
 <script>
 // ⚠️ Paste your deployed Apps Script Web App URL here
-const API_URL = "https://script.google.com/macros/s/AKfycbw-tjru_YrrIK90E_SzY7t6WpIHNhYB0nS7pz0KvE84svYqgqbvWPtFrEab52_BJqBn5A/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyADpeBtnQmRbTYAbvsBwW3QPLoeaUBba5FVRUWOf85U1s2kctLPTyaymKfNjyUjd7DZQ/exec";
 
 const STATUSES = ["New", "Contacted", "Follow-up", "Enrolled", "Closed"];
 const BADGE_CLASS = { "New": "badge-new", "Contacted": "badge-contacted", "Follow-up": "badge-followup", "Enrolled": "badge-enrolled", "Closed": "badge-closed" };
 const HEADERS = ["Parent Name", "Email", "Phone Number", "Message", "Date", "Status", "Comments", "Follow-up Date"];
 let DATA = [];
+let _jsonpId = 0;
+
+function jsonp(params) {
+  return new Promise((resolve, reject) => {
+    const name = "_cb" + (++_jsonpId);
+    const timeout = setTimeout(() => { cleanup(); reject(new Error("Timeout")); }, 15000);
+    function cleanup() { clearTimeout(timeout); delete window[name]; s.remove(); }
+    window[name] = data => { cleanup(); resolve(data); };
+    params.callback = name;
+    const qs = new URLSearchParams(params).toString();
+    const s = document.createElement("script");
+    s.src = API_URL + "?" + qs;
+    s.onerror = () => { cleanup(); reject(new Error("Request failed")); };
+    document.body.appendChild(s);
+  });
+}
 
 function getSession() {
   const s = sessionStorage.getItem("user");
@@ -139,9 +155,7 @@ async function doLogin() {
   if (!username || !password) { errEl.textContent = "Enter username and password"; errEl.style.display = "block"; return; }
   btn.disabled = true; btn.textContent = "Signing in..."; errEl.style.display = "none";
   try {
-    const params = new URLSearchParams({ action: "login", username, password });
-    const res = await fetch(API_URL + "?" + params);
-    const data = await res.json();
+    const data = await jsonp({ action: "login", username, password });
     if (data.success) {
       sessionStorage.setItem("user", JSON.stringify({ username, name: data.name }));
       showApp();
@@ -174,8 +188,7 @@ function showApp() {
 async function loadData() {
   document.getElementById("content").innerHTML = '<div class="loading">Loading enquiries...</div>';
   try {
-    const res = await fetch(API_URL);
-    const rows = await res.json();
+    const rows = await jsonp({ action: "data" });
     DATA = rows.map(r => {
       const obj = { _row: r._row };
       HEADERS.forEach(h => { obj[h] = r[h] || ""; });
@@ -279,13 +292,10 @@ async function saveRow(row, btn) {
   const followup = document.getElementById("followup-" + row).value;
   const newComment = document.getElementById("new-comment-" + row).value.trim();
 
-  const payload = { action: "save", row, status, followup, userName: user.name };
-  if (newComment) payload.comment = newComment;
-
   try {
-    const params = new URLSearchParams(payload);
-    const res = await fetch(API_URL + "?" + params);
-    const data = await res.json();
+    const params = { action: "save", row, status, followup, userName: user.name };
+    if (newComment) params.comment = newComment;
+    const data = await jsonp(params);
     if (data.success) {
       // Update local data for immediate re-render
       const item = DATA.find(r => r._row === row);
