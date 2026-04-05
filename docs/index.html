@@ -28,13 +28,11 @@
   .card-actions { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
   .card-actions select, .card-actions input { padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; }
   .card-actions input[type="date"] { width: 140px; flex: none; }
-  .card-actions input { flex: 1; min-width: 150px; }
   .btn-call { display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #34a853; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.85rem; }
   .btn-call:hover { background: #2d8e47; }
   .btn-save { padding: 8px 16px; background: #4285f4; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
   .btn-save:hover { background: #3367d6; }
   .btn-save:disabled { background: #ccc; cursor: default; }
-  .btn-save.saved { background: #34a853; }
   .loading { text-align: center; padding: 60px; color: #888; }
   .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; color: #fff; }
   .badge-new { background: #4285f4; }
@@ -43,12 +41,30 @@
   .badge-enrolled { background: #34a853; }
   .badge-closed { background: #999; }
   .empty { text-align: center; padding: 40px; color: #888; }
-  .auth-screen { text-align: center; padding: 80px 20px; }
-  .auth-screen h2 { margin-bottom: 10px; }
-  .auth-screen p { color: #666; margin-bottom: 24px; }
   .user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 0.85rem; }
-  .user-bar img { width: 28px; height: 28px; border-radius: 50%; }
   .user-bar button { background: none; border: 1px solid #ddd; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+
+  /* Login */
+  .login-screen { max-width: 340px; margin: 80px auto; text-align: center; }
+  .login-screen h2 { margin-bottom: 8px; }
+  .login-screen p { color: #666; margin-bottom: 20px; font-size: 0.9rem; }
+  .login-screen input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; margin-bottom: 10px; }
+  .login-screen button { width: 100%; padding: 12px; background: #4285f4; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+  .login-screen button:hover { background: #3367d6; }
+  .login-screen button:disabled { background: #ccc; }
+  .login-error { color: #d93025; font-size: 0.85rem; margin-bottom: 10px; }
+
+  /* Comment history */
+  .comment-section { margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
+  .comment-history { max-height: 150px; overflow-y: auto; margin-bottom: 8px; }
+  .comment-entry { background: #f7f8fa; border-radius: 6px; padding: 8px 10px; margin-bottom: 4px; font-size: 0.82rem; line-height: 1.4; }
+  .comment-meta { color: #888; font-size: 0.75rem; font-weight: 600; margin-bottom: 2px; }
+  .comment-input-row { display: flex; gap: 8px; align-items: center; }
+  .comment-input-row input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; }
+
+  /* Toast */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast.show { opacity: 1; }
 </style>
 </head>
 <body>
@@ -56,16 +72,19 @@
 <h1>📋 Admission Enquiries</h1>
 <p class="subtitle">Dashboard for managing admission enquiries</p>
 
-<div id="auth-screen" class="auth-screen">
-  <h2>Sign in to continue</h2>
-  <p>Only users with access to the sheet can view this dashboard.</p>
-  <div id="g_id_signin"></div>
+<div id="login-screen" class="login-screen">
+  <h2>Sign in</h2>
+  <p>Enter your credentials to continue</p>
+  <div id="login-error" class="login-error" style="display:none"></div>
+  <input type="text" id="login-user" placeholder="Username" autocomplete="username">
+  <input type="password" id="login-pass" placeholder="Password" autocomplete="current-password">
+  <button id="login-btn" onclick="doLogin()">Sign in</button>
 </div>
 
 <div id="app" style="display:none">
   <div class="user-bar" id="user-bar"></div>
   <div class="toolbar">
-    <input type="text" id="search" placeholder="Search by name, email, phone, location..." oninput="renderCards()">
+    <input type="text" id="search" placeholder="Search by name, email, phone..." oninput="renderCards()">
     <select id="filter-status" onchange="renderCards()">
       <option value="">All Status</option>
       <option value="New">New</option>
@@ -87,72 +106,84 @@
   <div id="content"><div class="loading">Loading enquiries...</div></div>
 </div>
 
-<script src="https://accounts.google.com/gsi/client"></script>
-<script src="https://apis.google.com/js/api.js"></script>
+<div class="toast" id="toast"></div>
+
 <script>
-// ⚠️ CONFIG — update these
-const CLIENT_ID = "206328073778-catkfv120bko1d8lok2i6sq5shucfbai.apps.googleusercontent.com";
-const SHEET_ID = "1O_iSsIssKkmeHVI4LLiP82xN1GzgXU6RwNJ7asMHAAc";
-const SHEET_NAME = "Sheet1";
-const SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile";
+// ⚠️ Paste your deployed Apps Script Web App URL here
+const API_URL = "";
 
 const STATUSES = ["New", "Contacted", "Follow-up", "Enrolled", "Closed"];
 const BADGE_CLASS = { "New": "badge-new", "Contacted": "badge-contacted", "Follow-up": "badge-followup", "Enrolled": "badge-enrolled", "Closed": "badge-closed" };
-const HEADERS = ["Parent Name", "Email", "Phone Number", "Location", "Message", "Date", "Status", "Comments", "Follow-up Date"];
+const HEADERS = ["Parent Name", "Email", "Phone Number", "Message", "Date", "Status", "Comments", "Follow-up Date"];
 let DATA = [];
-let tokenClient;
-let gapiLoaded = false;
 
-function initAuth() {
-  // Pre-load gapi client
-  gapi.load("client", async () => {
-    await gapi.client.init({});
-    await gapi.client.load("sheets", "v4");
-    gapiLoaded = true;
-  });
-
-  tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: onTokenResponse,
-  });
-  document.getElementById("g_id_signin").innerHTML = '<button onclick="tokenClient.requestAccessToken()" style="padding:12px 32px;font-size:1rem;background:#4285f4;color:#fff;border:none;border-radius:8px;cursor:pointer">🔐 Sign in with Google</button>';
+function getSession() {
+  const s = sessionStorage.getItem("user");
+  return s ? JSON.parse(s) : null;
 }
 
-function onTokenResponse(resp) {
-  if (resp.error) return;
-  gapi.client.setToken({ access_token: resp.access_token });
-  document.getElementById("auth-screen").style.display = "none";
-  document.getElementById("app").style.display = "block";
-  fetch("https://www.googleapis.com/oauth2/v3/userinfo", { headers: { Authorization: "Bearer " + resp.access_token } })
-    .then(r => r.json()).then(u => {
-      document.getElementById("user-bar").innerHTML = `<span>${esc(u.name || u.email || "")}</span>${u.picture ? `<img src="${u.picture}" alt="avatar">` : ""}<button onclick="signOut()">Sign out</button>`;
-    }).catch(() => {});
-  if (gapiLoaded) loadData();
-  else setTimeout(loadData, 500);
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2000);
 }
 
-function signOut() {
-  google.accounts.oauth2.revoke(gapi.client.getToken().access_token);
-  gapi.client.setToken(null);
-  document.getElementById("auth-screen").style.display = "block";
+// --- Auth ---
+
+async function doLogin() {
+  const btn = document.getElementById("login-btn");
+  const errEl = document.getElementById("login-error");
+  const username = document.getElementById("login-user").value.trim();
+  const password = document.getElementById("login-pass").value;
+  if (!username || !password) { errEl.textContent = "Enter username and password"; errEl.style.display = "block"; return; }
+  btn.disabled = true; btn.textContent = "Signing in..."; errEl.style.display = "none";
+  try {
+    const res = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action: "login", username, password }) });
+    const data = await res.json();
+    if (data.success) {
+      sessionStorage.setItem("user", JSON.stringify({ username, name: data.name }));
+      showApp();
+    } else {
+      errEl.textContent = data.error || "Invalid credentials"; errEl.style.display = "block";
+    }
+  } catch (e) {
+    errEl.textContent = "Connection failed. Check your API URL."; errEl.style.display = "block";
+  }
+  btn.disabled = false; btn.textContent = "Sign in";
+}
+
+function logout() {
+  sessionStorage.removeItem("user");
   document.getElementById("app").style.display = "none";
+  document.getElementById("login-screen").style.display = "block";
 }
+
+function showApp() {
+  const user = getSession();
+  if (!user) return;
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").style.display = "block";
+  document.getElementById("user-bar").innerHTML = `<span>${esc(user.name)}</span><button onclick="logout()">Sign out</button>`;
+  loadData();
+}
+
+// --- Data ---
 
 async function loadData() {
   document.getElementById("content").innerHTML = '<div class="loading">Loading enquiries...</div>';
   try {
-    const res = await gapi.client.sheets.spreadsheets.values.get({ spreadsheetId: SHEET_ID, range: SHEET_NAME });
-    const rows = res.result.values || [];
-    DATA = rows.slice(1).map((row, i) => {
-      const obj = { _row: i + 2 };
-      HEADERS.forEach((h, j) => { obj[h] = row[j] || ""; });
+    const res = await fetch(API_URL);
+    const rows = await res.json();
+    DATA = rows.map(r => {
+      const obj = { _row: r._row };
+      HEADERS.forEach(h => { obj[h] = r[h] || ""; });
       return obj;
     });
     renderStats();
     renderCards();
   } catch (e) {
-    document.getElementById("content").innerHTML = '<div class="empty">Failed to load data. You may not have access to this sheet.</div>';
+    document.getElementById("content").innerHTML = '<div class="empty">Failed to load data. Check API URL.</div>';
   }
 }
 
@@ -166,6 +197,22 @@ function renderStats() {
     STATUSES.map(s => `<div class="stat"><b>${counts[s]}</b>${s}</div>`).join("");
 }
 
+function parseComments(raw) {
+  if (!raw) return [];
+  return String(raw).split("\n").filter(l => l.trim()).map(line => {
+    const m = line.match(/^\[(.+?)\s*\|\s*(.+?)\]\s*(.*)/);
+    if (m) return { name: m[1], time: m[2], text: m[3] };
+    return { name: "", time: "", text: line };
+  });
+}
+
+function renderCommentHistory(entries) {
+  if (!entries.length) return '<div style="color:#aaa;font-size:0.8rem;margin-bottom:6px;">No comments yet</div>';
+  return entries.map(c =>
+    `<div class="comment-entry">${c.name ? `<div class="comment-meta">${esc(c.name)} · ${esc(c.time)}</div>` : ""}${esc(c.text)}</div>`
+  ).join("");
+}
+
 function renderCards() {
   const q = document.getElementById("search").value.toLowerCase();
   const sf = document.getElementById("filter-status").value;
@@ -176,16 +223,15 @@ function renderCards() {
   const filtered = DATA.filter(r => {
     const status = r.Status || "New";
     if (sf && status !== sf) return false;
-    if (q) { const text = [r["Parent Name"], r.Email, r["Phone Number"], r.Location, r.Message].join(" ").toLowerCase(); if (!text.includes(q)) return false; }
+    if (q) { const text = [r["Parent Name"], r.Email, r["Phone Number"], r.Message].join(" ").toLowerCase(); if (!text.includes(q)) return false; }
     if (ff) {
       const fd = r["Follow-up Date"] ? new Date(r["Follow-up Date"]) : null;
-      if (ff === "none" && fd) return false;
-      if (ff === "none" && !fd) return true;
+      if (ff === "none") return !fd;
       if (!fd) return false;
       fd.setHours(0,0,0,0);
-      if (ff === "overdue" && fd >= today) return false;
-      if (ff === "today" && fd.getTime() !== today.getTime()) return false;
-      if (ff === "week" && (fd < today || fd > weekEnd)) return false;
+      if (ff === "overdue") return fd < today;
+      if (ff === "today") return fd.getTime() === today.getTime();
+      if (ff === "week") return fd >= today && fd <= weekEnd;
     }
     return true;
   });
@@ -196,6 +242,7 @@ function renderCards() {
     const status = r.Status || "New";
     const phone = String(r["Phone Number"] || "");
     const cleanPhone = phone.replace(/[^\d+]/g, "");
+    const comments = parseComments(r.Comments);
     return `<div class="card">
       <div class="card-header">
         <div><h3>${esc(r["Parent Name"] || "Unknown")}</h3> <span class="badge ${BADGE_CLASS[status] || "badge-new"}">${status}</span></div>
@@ -204,7 +251,6 @@ function renderCards() {
       <div class="card-details">
         <div><label>Email</label>${esc(r.Email || "-")}</div>
         <div><label>Phone</label>${esc(phone || "-")}</div>
-        <div><label>Location</label>${esc(r.Location || "-")}</div>
         <div><label>Message</label>${esc(r.Message || "-")}</div>
       </div>
       <div class="card-actions">
@@ -213,8 +259,13 @@ function renderCards() {
           ${STATUSES.map(s => `<option ${s === status ? "selected" : ""}>${s}</option>`).join("")}
         </select>
         <input type="date" id="followup-${r._row}" value="${esc(fmtDate(r["Follow-up Date"]))}" aria-label="Follow-up Date" title="Follow-up Date">
-        <input id="comments-${r._row}" value="${esc(String(r.Comments || ""))}" placeholder="Add comments..." aria-label="Comments">
         <button class="btn-save" onclick="saveRow(${r._row}, this)">Save</button>
+      </div>
+      <div class="comment-section">
+        <div class="comment-history">${renderCommentHistory(comments)}</div>
+        <div class="comment-input-row">
+          <input id="new-comment-${r._row}" placeholder="Add a comment..." aria-label="New comment">
+        </div>
       </div>
     </div>`;
   }).join("") + '</div>';
@@ -222,22 +273,37 @@ function renderCards() {
 
 async function saveRow(row, btn) {
   btn.disabled = true; btn.textContent = "Saving...";
+  const user = getSession();
   const status = document.getElementById("status-" + row).value;
-  const comments = document.getElementById("comments-" + row).value;
   const followup = document.getElementById("followup-" + row).value;
+  const newComment = document.getElementById("new-comment-" + row).value.trim();
+
+  const payload = { action: "save", row, status, followup, userName: user.name };
+  if (newComment) payload.comment = newComment;
+
   try {
-    await gapi.client.sheets.spreadsheets.values.update({
-      spreadsheetId: SHEET_ID,
-      range: `${SHEET_NAME}!G${row}:I${row}`,
-      valueInputOption: "USER_ENTERED",
-      resource: { values: [[status, comments, followup]] }
-    });
-    const item = DATA.find(r => r._row === row);
-    if (item) { item.Status = status; item.Comments = comments; item["Follow-up Date"] = followup; }
-    renderStats();
-    btn.textContent = "✓ Saved"; btn.classList.add("saved");
-    setTimeout(() => { btn.textContent = "Save"; btn.classList.remove("saved"); btn.disabled = false; }, 1500);
-  } catch (e) { btn.textContent = "Error!"; btn.disabled = false; }
+    const res = await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.success) {
+      // Update local data for immediate re-render
+      const item = DATA.find(r => r._row === row);
+      if (item) {
+        item.Status = status;
+        item["Follow-up Date"] = followup;
+        if (newComment) {
+          const ts = new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+          const entry = `[${user.name} | ${ts}] ${newComment}`;
+          item.Comments = item.Comments ? item.Comments + "\n" + entry : entry;
+        }
+      }
+      renderStats();
+      renderCards();
+      showToast("✓ Saved successfully");
+    } else { throw new Error(); }
+  } catch (e) {
+    btn.textContent = "Error!"; btn.disabled = false;
+    showToast("Failed to save");
+  }
 }
 
 function fmtDate(v) {
@@ -248,7 +314,11 @@ function fmtDate(v) {
 
 function esc(s) { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; }
 
-window.onload = initAuth;
+// Allow Enter key on password field
+document.getElementById("login-pass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+
+// On load — check session
+if (getSession()) showApp();
 </script>
 </body>
 </html>
