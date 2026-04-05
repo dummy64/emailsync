@@ -7,109 +7,148 @@
 <title>Admission Enquiries Dashboard</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; padding: 20px; }
-  h1 { text-align: center; margin-bottom: 6px; font-size: 1.5rem; }
-  .subtitle { text-align: center; color: #666; margin-bottom: 20px; font-size: 0.9rem; }
-  .toolbar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; align-items: center; }
-  .toolbar input { flex: 1; min-width: 200px; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; }
-  .toolbar select { padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; }
-  .toolbar button { padding: 10px 20px; background: #4285f4; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.95rem; }
-  .toolbar button:hover { background: #3367d6; }
-  .stats { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-  .stat { background: #fff; padding: 12px 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); font-size: 0.85rem; }
-  .stat b { font-size: 1.2rem; display: block; }
-  .card-list { display: flex; flex-direction: column; gap: 12px; }
-  .card { background: #fff; border-radius: 10px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-  .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
-  .card-header h3 { font-size: 1rem; }
-  .card-header .date { color: #888; font-size: 0.8rem; }
-  .card-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin-bottom: 12px; font-size: 0.9rem; }
-  .card-details label { color: #888; font-size: 0.75rem; display: block; }
-  .card-actions { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
-  .card-actions select, .card-actions input { padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; }
-  .card-actions input[type="date"] { width: 140px; flex: none; }
-  .btn-call { display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #34a853; color: #fff; text-decoration: none; border-radius: 6px; font-size: 0.85rem; }
-  .btn-call:hover { background: #2d8e47; }
-  .btn-save { padding: 8px 16px; background: #4285f4; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; }
-  .btn-save:hover { background: #3367d6; }
-  .btn-save:disabled { background: #ccc; cursor: default; }
-  .loading { text-align: center; padding: 60px; color: #888; }
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; color: #fff; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #1a1a1a; }
+  .container { max-width: 800px; margin: 0 auto; padding: 16px; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #4285f4, #3367d6); color: #fff; padding: 20px 16px; text-align: center; position: sticky; top: 0; z-index: 10; }
+  .header h1 { font-size: 1.25rem; font-weight: 600; }
+  .header .subtitle { color: rgba(255,255,255,0.8); font-size: 0.8rem; margin-top: 4px; }
+  .user-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #fff; border-bottom: 1px solid #e0e0e0; }
+  .user-bar span { font-size: 0.85rem; font-weight: 500; }
+  .user-bar button { background: none; border: 1px solid #ddd; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; color: #555; }
+
+  /* Login */
+  .login-screen { max-width: 360px; margin: 0 auto; padding: 60px 20px; text-align: center; }
+  .login-card { background: #fff; border-radius: 16px; padding: 32px 24px; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .login-card h2 { font-size: 1.3rem; margin-bottom: 4px; }
+  .login-card p { color: #888; margin-bottom: 20px; font-size: 0.85rem; }
+  .login-card input { width: 100%; padding: 14px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 12px; background: #fafafa; -webkit-appearance: none; }
+  .login-card input:focus { outline: none; border-color: #4285f4; background: #fff; }
+  .login-card button { width: 100%; padding: 14px; background: #4285f4; color: #fff; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+  .login-card button:active { background: #3367d6; }
+  .login-card button:disabled { background: #ccc; }
+  .login-error { color: #d93025; font-size: 0.85rem; margin-bottom: 12px; }
+
+  /* Toolbar */
+  .toolbar { display: flex; flex-direction: column; gap: 8px; padding: 12px 0; }
+  .toolbar input, .toolbar select { width: 100%; padding: 12px; border: 1px solid #e0e0e0; border-radius: 10px; font-size: 0.95rem; background: #fff; -webkit-appearance: none; }
+  .toolbar input:focus, .toolbar select:focus { outline: none; border-color: #4285f4; }
+  .filter-row { display: flex; gap: 8px; }
+  .filter-row select { flex: 1; }
+  .filter-row button { padding: 12px 16px; background: #4285f4; color: #fff; border: none; border-radius: 10px; cursor: pointer; font-size: 0.9rem; white-space: nowrap; }
+
+  /* Stats */
+  .stats { display: flex; gap: 8px; padding: 8px 0 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .stat { background: #fff; padding: 10px 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); font-size: 0.78rem; color: #666; white-space: nowrap; flex-shrink: 0; }
+  .stat b { font-size: 1.1rem; display: block; color: #1a1a1a; }
+
+  /* Cards */
+  .card-list { display: flex; flex-direction: column; gap: 12px; padding-bottom: 24px; }
+  .card { background: #fff; border-radius: 14px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+  .card-header h3 { font-size: 1rem; font-weight: 600; }
+  .card-header .date { color: #999; font-size: 0.75rem; }
+  .card-details { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+  .card-field { font-size: 0.88rem; }
+  .card-field label { color: #999; font-size: 0.72rem; display: block; margin-bottom: 1px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .card-field .msg { white-space: pre-wrap; word-break: break-word; max-height: 80px; overflow-y: auto; line-height: 1.4; }
+  .card-actions { display: flex; flex-direction: column; gap: 8px; }
+  .card-actions-row { display: flex; gap: 8px; align-items: center; }
+  .card-actions select, .card-actions input[type="date"] { flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; background: #fff; -webkit-appearance: none; }
+  .card-actions-btns { display: flex; gap: 8px; }
+  .btn-call { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 10px 16px; background: #34a853; color: #fff; text-decoration: none; border-radius: 8px; font-size: 0.88rem; font-weight: 500; flex: 1; }
+  .btn-call:active { background: #2d8e47; }
+  .btn-save { padding: 10px 20px; background: #4285f4; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-size: 0.88rem; font-weight: 500; flex: 1; }
+  .btn-save:active { background: #3367d6; }
+  .btn-save:disabled { background: #ccc; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; color: #fff; }
   .badge-new { background: #4285f4; }
   .badge-contacted { background: #fbbc04; color: #333; }
   .badge-followup { background: #ff6d01; }
   .badge-enrolled { background: #34a853; }
   .badge-closed { background: #999; }
-  .empty { text-align: center; padding: 40px; color: #888; }
-  .user-bar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-bottom: 16px; font-size: 0.85rem; }
-  .user-bar button { background: none; border: 1px solid #ddd; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
 
-  /* Login */
-  .login-screen { max-width: 340px; margin: 80px auto; text-align: center; }
-  .login-screen h2 { margin-bottom: 8px; }
-  .login-screen p { color: #666; margin-bottom: 20px; font-size: 0.9rem; }
-  .login-screen input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 0.95rem; margin-bottom: 10px; }
-  .login-screen button { width: 100%; padding: 12px; background: #4285f4; color: #fff; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
-  .login-screen button:hover { background: #3367d6; }
-  .login-screen button:disabled { background: #ccc; }
-  .login-error { color: #d93025; font-size: 0.85rem; margin-bottom: 10px; }
+  /* Comments */
+  .comment-section { margin-top: 12px; border-top: 1px solid #f0f0f0; padding-top: 10px; }
+  .comment-history { max-height: 140px; overflow-y: auto; margin-bottom: 8px; }
+  .comment-entry { background: #f7f8fa; border-radius: 8px; padding: 8px 10px; margin-bottom: 4px; font-size: 0.82rem; line-height: 1.4; }
+  .comment-meta { color: #999; font-size: 0.72rem; font-weight: 600; margin-bottom: 2px; }
+  .comment-input-row { display: flex; gap: 8px; }
+  .comment-input-row input { flex: 1; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; font-size: 0.88rem; background: #fafafa; }
+  .comment-input-row input:focus { outline: none; border-color: #4285f4; background: #fff; }
 
-  /* Comment history */
-  .comment-section { margin-top: 10px; border-top: 1px solid #eee; padding-top: 10px; }
-  .comment-history { max-height: 150px; overflow-y: auto; margin-bottom: 8px; }
-  .comment-entry { background: #f7f8fa; border-radius: 6px; padding: 8px 10px; margin-bottom: 4px; font-size: 0.82rem; line-height: 1.4; }
-  .comment-meta { color: #888; font-size: 0.75rem; font-weight: 600; margin-bottom: 2px; }
-  .comment-input-row { display: flex; gap: 8px; align-items: center; }
-  .comment-input-row input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.85rem; }
+  .loading { text-align: center; padding: 60px 20px; color: #999; }
+  .empty { text-align: center; padding: 40px 20px; color: #999; }
 
   /* Toast */
-  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 10px 24px; border-radius: 8px; font-size: 0.9rem; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 12px 24px; border-radius: 10px; font-size: 0.88rem; z-index: 999; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
   .toast.show { opacity: 1; }
+
+  /* Desktop */
+  @media (min-width: 600px) {
+    .toolbar { flex-direction: row; }
+    .toolbar input { flex: 1; }
+    .filter-row { flex: none; }
+    .card-details { flex-direction: row; flex-wrap: wrap; gap: 12px; }
+    .card-field { flex: 1; min-width: 180px; }
+    .card-actions { flex-direction: row; align-items: center; }
+    .card-actions-row { flex: 1; }
+    .card-actions-btns { flex: none; }
+    .btn-call, .btn-save { flex: none; }
+  }
 </style>
 </head>
 <body>
 
-<h1>📋 Admission Enquiries</h1>
-<p class="subtitle">Dashboard for managing admission enquiries</p>
+<div class="header">
+  <h1>📋 Admission Enquiries</h1>
+  <div class="subtitle">Dashboard for managing admission enquiries</div>
+</div>
 
 <div id="login-screen" class="login-screen">
-  <h2>Sign in</h2>
-  <p>Enter your credentials to continue</p>
-  <div id="login-error" class="login-error" style="display:none"></div>
-  <input type="text" id="login-user" placeholder="Username" autocomplete="username">
-  <input type="password" id="login-pass" placeholder="Password" autocomplete="current-password">
-  <button id="login-btn" onclick="doLogin()">Sign in</button>
+  <div class="login-card">
+    <h2>Welcome back</h2>
+    <p>Sign in to manage enquiries</p>
+    <div id="login-error" class="login-error" style="display:none"></div>
+    <input type="text" id="login-user" placeholder="Username" autocomplete="username">
+    <input type="password" id="login-pass" placeholder="Password" autocomplete="current-password">
+    <button id="login-btn" onclick="doLogin()">Sign in</button>
+  </div>
 </div>
 
 <div id="app" style="display:none">
   <div class="user-bar" id="user-bar"></div>
-  <div class="toolbar">
-    <input type="text" id="search" placeholder="Search by name, email, phone..." oninput="renderCards()">
-    <select id="filter-status" onchange="renderCards()">
-      <option value="">All Status</option>
-      <option value="New">New</option>
-      <option value="Contacted">Contacted</option>
-      <option value="Follow-up">Follow-up</option>
-      <option value="Enrolled">Enrolled</option>
-      <option value="Closed">Closed</option>
-    </select>
-    <select id="filter-followup" onchange="renderCards()">
-      <option value="">All Follow-ups</option>
-      <option value="overdue">Overdue</option>
-      <option value="today">Today</option>
-      <option value="week">This Week</option>
-      <option value="none">No Date Set</option>
-    </select>
-    <button onclick="loadData()">↻ Refresh</button>
+  <div class="container">
+    <div class="toolbar">
+      <input type="text" id="search" placeholder="🔍 Search by name, email, phone..." oninput="renderCards()">
+      <div class="filter-row">
+        <select id="filter-status" onchange="renderCards()">
+          <option value="">All Status</option>
+          <option value="New">New</option>
+          <option value="Contacted">Contacted</option>
+          <option value="Follow-up">Follow-up</option>
+          <option value="Enrolled">Enrolled</option>
+          <option value="Closed">Closed</option>
+        </select>
+        <select id="filter-followup" onchange="renderCards()">
+          <option value="">All Follow-ups</option>
+          <option value="overdue">Overdue</option>
+          <option value="today">Today</option>
+          <option value="week">This Week</option>
+          <option value="none">No Date Set</option>
+        </select>
+        <button onclick="loadData()">↻</button>
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div id="content"><div class="loading">Loading enquiries...</div></div>
   </div>
-  <div class="stats" id="stats"></div>
-  <div id="content"><div class="loading">Loading enquiries...</div></div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ⚠️ Paste your deployed Apps Script Web App URL here
 const API_URL = "https://script.google.com/macros/s/AKfycbw3xjVKLwQbi3thHv3eyDc9u8HK5HZkShf8A04R8iIF6bCbwhKPOgHLOk1sxIjcCmF6Kw/exec";
 
 const STATUSES = ["New", "Contacted", "Follow-up", "Enrolled", "Closed"];
@@ -145,8 +184,6 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove("show"), 2000);
 }
 
-// --- Auth ---
-
 async function doLogin() {
   const btn = document.getElementById("login-btn");
   const errEl = document.getElementById("login-error");
@@ -179,11 +216,9 @@ function showApp() {
   if (!user) return;
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("app").style.display = "block";
-  document.getElementById("user-bar").innerHTML = `<span>${esc(user.name)}</span><button onclick="logout()">Sign out</button>`;
+  document.getElementById("user-bar").innerHTML = `<span>👤 ${esc(user.name)}</span><button onclick="logout()">Sign out</button>`;
   loadData();
 }
-
-// --- Data ---
 
 async function loadData() {
   document.getElementById("content").innerHTML = '<div class="loading">Loading enquiries...</div>';
@@ -221,7 +256,7 @@ function parseComments(raw) {
 }
 
 function renderCommentHistory(entries) {
-  if (!entries.length) return '<div style="color:#aaa;font-size:0.8rem;margin-bottom:6px;">No comments yet</div>';
+  if (!entries.length) return '<div style="color:#bbb;font-size:0.8rem;margin-bottom:6px;">No comments yet</div>';
   return entries.map(c =>
     `<div class="comment-entry">${c.name ? `<div class="comment-meta">${esc(c.name)} · ${esc(c.time)}</div>` : ""}${esc(c.text)}</div>`
   ).join("");
@@ -263,17 +298,21 @@ function renderCards() {
         <span class="date">${esc(String(r.Date || ""))}</span>
       </div>
       <div class="card-details">
-        <div><label>Email</label>${esc(r.Email || "-")}</div>
-        <div><label>Phone</label>${esc(phone || "-")}</div>
-        <div><label>Message</label>${esc(r.Message || "-")}</div>
+        <div class="card-field"><label>Email</label>${esc(r.Email || "-")}</div>
+        <div class="card-field"><label>Phone</label>${esc(phone || "-")}</div>
+        <div class="card-field" style="flex-basis:100%"><label>Message</label><div class="msg">${esc(r.Message || "-")}</div></div>
       </div>
       <div class="card-actions">
-        ${cleanPhone ? `<a href="tel:${cleanPhone}" class="btn-call">📞 Call</a>` : ""}
-        <select id="status-${r._row}" aria-label="Status">
-          ${STATUSES.map(s => `<option ${s === status ? "selected" : ""}>${s}</option>`).join("")}
-        </select>
-        <input type="date" id="followup-${r._row}" value="${esc(fmtDate(r["Follow-up Date"]))}" aria-label="Follow-up Date" title="Follow-up Date">
-        <button class="btn-save" onclick="saveRow(${r._row}, this)">Save</button>
+        <div class="card-actions-row">
+          <select id="status-${r._row}" aria-label="Status">
+            ${STATUSES.map(s => `<option ${s === status ? "selected" : ""}>${s}</option>`).join("")}
+          </select>
+          <input type="date" id="followup-${r._row}" value="${esc(fmtDate(r["Follow-up Date"]))}" aria-label="Follow-up Date">
+        </div>
+        <div class="card-actions-btns">
+          ${cleanPhone ? `<a href="tel:${cleanPhone}" class="btn-call">📞 Call</a>` : ""}
+          <button class="btn-save" onclick="saveRow(${r._row}, this)">💾 Save</button>
+        </div>
       </div>
       <div class="comment-section">
         <div class="comment-history">${renderCommentHistory(comments)}</div>
@@ -297,7 +336,6 @@ async function saveRow(row, btn) {
     if (newComment) params.comment = newComment;
     const data = await jsonp(params);
     if (data.success) {
-      // Update local data for immediate re-render
       const item = DATA.find(r => r._row === row);
       if (item) {
         item.Status = status;
@@ -326,10 +364,8 @@ function fmtDate(v) {
 
 function esc(s) { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; }
 
-// Allow Enter key on password field
 document.getElementById("login-pass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
 
-// On load — check session
 if (getSession()) showApp();
 </script>
 </body>
