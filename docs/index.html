@@ -41,7 +41,10 @@
   /* Stats */
   .stats { display: flex; gap: 8px; padding: 8px 0 12px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
   .stats::-webkit-scrollbar { display: none; }
-  .stat { background: #fff; padding: 10px 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); font-size: 0.78rem; color: #666; white-space: nowrap; flex-shrink: 0; }
+  .stat { background: #fff; padding: 10px 16px; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); font-size: 0.78rem; color: #666; white-space: nowrap; flex-shrink: 0; cursor: pointer; transition: box-shadow 0.15s, background 0.15s; }
+  .stat:hover { background: #f0f4ff; box-shadow: 0 2px 8px rgba(66,133,244,0.15); }
+  .stat.active { background: #4285f4; color: #fff; box-shadow: 0 2px 8px rgba(66,133,244,0.3); }
+  .stat.active b { color: #fff; }
   .stat b { font-size: 1.1rem; display: block; color: #1a1a1a; }
 
   /* Cards */
@@ -238,13 +241,25 @@ async function loadData() {
 }
 
 function renderStats() {
-  const total = DATA.length;
+  const activeFilter = document.getElementById("filter-status").value;
   const counts = {};
   STATUSES.forEach(s => counts[s] = 0);
-  DATA.forEach(r => { const s = r.Status || "New"; if (counts[s] !== undefined) counts[s]++; else counts["New"]++; });
+  DATA.forEach(r => {
+    const s = (r.Status && STATUSES.includes(r.Status)) ? r.Status : "New";
+    counts[s]++;
+  });
+  const total = DATA.length;
   document.getElementById("stats").innerHTML =
-    `<div class="stat"><b>${total}</b>Total</div>` +
-    STATUSES.map(s => `<div class="stat"><b>${counts[s]}</b>${s}</div>`).join("");
+    `<div class="stat ${activeFilter === "" ? "active" : ""}" onclick="setStatusFilter('')"><b>${total}</b>Total</div>` +
+    STATUSES.map(s =>
+      `<div class="stat ${activeFilter === s ? "active" : ""}" onclick="setStatusFilter('${s}')"><b>${counts[s]}</b>${s}</div>`
+    ).join("");
+}
+
+function setStatusFilter(value) {
+  document.getElementById("filter-status").value = value;
+  renderStats();
+  renderCards();
 }
 
 function parseComments(raw) {
@@ -264,6 +279,7 @@ function renderCommentHistory(entries) {
 }
 
 function renderCards() {
+  renderStats();
   const q = document.getElementById("search").value.toLowerCase();
   const sf = document.getElementById("filter-status").value;
   const ff = document.getElementById("filter-followup").value;
